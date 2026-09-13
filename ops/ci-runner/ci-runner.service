@@ -1,6 +1,6 @@
 [Unit]
 Description=Ephemeral CI runner for aws-cdk-starterkit on 5900xt
-After=default.target ci-runner-firewall.service
+After=ci-runner-firewall.service
 StartLimitIntervalSec=0
 
 [Service]

@@ -78,7 +78,7 @@ image unintentionally. Do not modify a golden image while runners use it.
 Ensure `loginctl show-user "$USER" -p Linger` reports yes for reboot startup.
 `systemctl --user status <unit>` and `journalctl --user -u <unit> -n 50` expose
 registration failures; `gh api repos/jeffbking/aws-cdk-starterkit/actions/runners --paginate`
-checks online registrations. Restarts use systemd backoff, not a marker-file poll.
+checks online registrations. Restarts use systemd restart delay, not a marker-file poll.
 Archive directories are private to the operator; apply the supplied tmpfiles
 policy to retain seven days of diagnostics. This host has finite capacity: watch
 available RAM and memory pressure when changing concurrency or per-job limits.
