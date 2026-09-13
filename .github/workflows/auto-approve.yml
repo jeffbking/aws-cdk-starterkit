@@ -11,7 +11,11 @@ on:
       - ready_for_review
 jobs:
   approve:
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - 5900xt-aws-cdk-starterkit-ci
     permissions:
       pull-requests: write
     if: contains(github.event.pull_request.labels.*.name, 'auto-approve') && (github.event.pull_request.user.login == 'dependabot' || github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'github-bot' || github.event.pull_request.user.login == 'github-actions[bot]')

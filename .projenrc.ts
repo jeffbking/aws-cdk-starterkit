@@ -2,7 +2,7 @@ import { awscdk } from 'projen';
 import { DependabotScheduleInterval } from 'projen/lib/github';
 import { NodePackageManager } from 'projen/lib/javascript';
 import { YamlFile } from 'projen/lib/yaml';
-import { createCdkDeploymentWorkflows } from './src/bin/cicd-helper';
+import { CI_RUNNER_LABELS, createCdkDeploymentWorkflows } from './src/bin/cicd-helper';
 import { addCdkActionTask } from './src/bin/env-helper';
 
 // Set the minimum node version for AWS CDK and the GitHub actions workflow
@@ -39,9 +39,11 @@ const project = new awscdk.AwsCdkTypeScriptApp({
   projenrcTs: true,
   buildWorkflow: false,
   release: true,
+  workflowRunsOn: CI_RUNNER_LABELS,
   deps: ['aws-cdk-github-oidc', 'cloudstructs'] /* Runtime dependencies of this module. */,
   pullRequestTemplate: false,
   autoApproveOptions: {
+    runsOn: CI_RUNNER_LABELS,
     allowedUsernames: ['dependabot', 'dependabot[bot]', 'github-bot', 'github-actions[bot]'],
     /**
      * The name of the secret that has the GitHub PAT for auto-approving PRs.
@@ -63,6 +65,7 @@ const project = new awscdk.AwsCdkTypeScriptApp({
   },
   githubOptions: {
     pullRequestLintOptions: {
+      runsOn: CI_RUNNER_LABELS,
       semanticTitleOptions: {
         types: ['feat', 'fix', 'build', 'chore', 'ci', 'docs', 'style', 'refactor'],
       },

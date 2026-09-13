@@ -1,0 +1,19 @@
+[Unit]
+Description=Ephemeral CI runner for aws-cdk-starterkit on 5900xt
+After=ci-runner-firewall.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+UMask=0077
+ExecStart=/usr/bin/python3 %h/actions-runners/agy-review/run-ephemeral.py aws-cdk-starterkit ci
+ExecStopPost=-/usr/bin/docker rm -f 5900xt-aws-cdk-starterkit-ci
+Restart=always
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=180
+
+[Install]
+WantedBy=default.target

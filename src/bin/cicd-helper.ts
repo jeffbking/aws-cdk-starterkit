@@ -8,7 +8,7 @@ const COMMON_WORKFLOW_PERMISSIONS = {
   idToken: github.workflows.JobPermission.WRITE,
 };
 
-const COMMON_RUNS_ON = ['ubuntu-latest'];
+export const CI_RUNNER_LABELS = ['self-hosted', 'Linux', 'X64', '5900xt-aws-cdk-starterkit-ci'];
 
 const BRANCH_EXCLUSIONS = ['main', 'hotfix/*', 'github-actions/*', 'dependabot/**'];
 
@@ -92,7 +92,7 @@ function createCdkDeploymentWorkflow(
   cdkDeploymentWorkflow.addJobs({
     deploy: {
       name: `Deploy CDK stacks to ${env} AWS account${deployForBranch ? ' (Branch)' : ''}`,
-      runsOn: COMMON_RUNS_ON,
+      runsOn: CI_RUNNER_LABELS,
       environment: env,
       permissions: COMMON_WORKFLOW_PERMISSIONS,
       steps: [...commonWorkflowSteps, ...deploymentSteps],
@@ -171,7 +171,7 @@ function createCdkDestroyWorkflow(
     destroy: {
       name: 'Remove deployment of feature branch',
       if: "github.head_ref != 'main' || (github.event.ref_type == 'branch' && github.event_name == 'delete') || github.event_name == 'workflow_dispatch'",
-      runsOn: COMMON_RUNS_ON,
+      runsOn: CI_RUNNER_LABELS,
       environment: env,
       permissions: COMMON_WORKFLOW_PERMISSIONS,
       steps: [...commonWorkflowSteps, ...destroySteps],

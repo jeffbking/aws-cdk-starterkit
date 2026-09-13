@@ -9,7 +9,11 @@ on:
 jobs:
   deploy:
     name: Deploy CDK stacks to test AWS account
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - 5900xt-aws-cdk-starterkit-ci
     permissions:
       actions: write
       contents: read

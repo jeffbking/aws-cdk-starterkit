@@ -14,7 +14,11 @@ on:
 jobs:
   validate:
     name: Validate PR title
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - 5900xt-aws-cdk-starterkit-ci
     permissions:
       pull-requests: write
     if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
