@@ -52,15 +52,22 @@ try:
 finally:
     subprocess.run(['docker', 'stop', '--timeout', '30', container], stdout=subprocess.DEVNULL)
     logs = pathlib.Path.home() / 'actions-runners/agy-review/logs' / name
-    logs.mkdir(parents=True, exist_ok=True)
-    subprocess.run(['docker', 'cp', f'{container}:/home/runner/_diag/.', str(logs)], stdout=subprocess.DEVNULL)
+    try:
+        logs.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['docker', 'cp', f'{container}:/home/runner/_diag/.', str(logs)],
+                       stdout=subprocess.DEVNULL, check=True, timeout=30)
+    except (OSError, subprocess.SubprocessError) as error:
+        print(f'Diagnostic archive failed: {error}', file=sys.stderr)
     subprocess.run(['docker', 'rm', '-f', container], stdout=subprocess.DEVNULL)
     # Completed ephemeral runners deregister themselves. Remove an abandoned
     # registration only after its container has stopped, using its unique name.
-    runners = json.loads(subprocess.check_output(['gh', 'api', '--paginate', '--slurp',
-                         f'repos/jeffbking/{repo}/actions/runners'], text=True))
-    runners = [runner for page in runners for runner in page['runners']]
-    for runner in runners:
-        if runner['name'] == name:
-            subprocess.run(['gh', 'api', '-X', 'DELETE',
-                            f'repos/jeffbking/{repo}/actions/runners/{runner["id"]}'], check=True)
+    try:
+        runners = json.loads(subprocess.check_output(['gh', 'api', '--paginate', '--slurp',
+                             f'repos/jeffbking/{repo}/actions/runners'], text=True))
+        for page in runners:
+            for runner in page['runners']:
+                if runner['name'] == name:
+                    subprocess.run(['gh', 'api', '-X', 'DELETE',
+                                    f'repos/jeffbking/{repo}/actions/runners/{runner["id"]}'], check=True)
+    except (OSError, subprocess.SubprocessError, ValueError) as error:
+        print(f'Registration cleanup failed: {error}', file=sys.stderr)
