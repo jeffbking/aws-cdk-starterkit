@@ -6,6 +6,9 @@ on:
       - .github/workflows/**
       - ops/ci-runner/**
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -20,6 +23,13 @@ jobs:
         shell: bash
         run: |
           [[ "$RUNNER_NAME" == "5900xt-aws-cdk-starterkit-ci-"* ]]
+          python3 -c 'import json; assert json.load(open("/home/runner/.runner", encoding="utf-8-sig"))["ephemeral"] is True'
+          test ! -e "$HOME/.preflight-job-seen"
+          touch "$HOME/.preflight-job-seen"
+          test "$(cat /sys/fs/cgroup/memory.max)" = "3221225472"
+          test "$(cat /sys/fs/cgroup/cpu.max)" = "200000 100000"
+          test "$(awk '/CapEff/ {print $2}' /proc/self/status)" = "0000000000000000"
+          test "$(awk '/NoNewPrivs/ {print $2}' /proc/self/status)" = "1"
           test "$(id -u)" != 0
           node --version
           npm --version

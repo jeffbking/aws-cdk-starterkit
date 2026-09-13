@@ -8,8 +8,10 @@ import subprocess
 import sys
 import uuid
 
+if len(sys.argv) not in (2, 3):
+    raise SystemExit("Usage: run-ephemeral.py REPOSITORY [review|ci]")
 repo = sys.argv[1]
-if not re.fullmatch(r"[A-Za-z0-9_.-]+", repo):
+if not re.fullmatch(r"[A-Za-z0-9_.-]+", repo) or repo in {".", ".."}:
     raise SystemExit("Invalid repository name")
 kind = sys.argv[2] if len(sys.argv) > 2 else 'review'
 if kind not in ['review', 'ci']:
@@ -23,15 +25,25 @@ def stop(signum, _frame):
     raise SystemExit(128 + signum)
 
 signal.signal(signal.SIGTERM, stop)
+subprocess.run(['docker', 'run', '--rm', '--network', 'host', '--cap-drop', 'ALL',
+                '--cap-add', 'NET_ADMIN', '--security-opt', 'no-new-privileges',
+                'local/ci-runner-firewall:2026-09-13'], check=True)
 subprocess.run(['docker', 'create', '-i', '--name', container, '--hostname', name,
-                '--init', '--user', '1001:1001', '--cpus', '2', '--memory', '2g' if kind == 'review' else '3g',
+                '--network', 'ci-containers', '--init', '--user', '1001:1001', '--cpus', '2', '--memory', '2g' if kind == 'review' else '3g',
                 '--pids-limit', '256' if kind == 'review' else '512', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
                 image, 'bash', '-ec',
-                'IFS= read -r registration_token; ./config.sh --unattended --ephemeral '
+                'IFS= read -r registration_token; ./config.sh --unattended --ephemeral --disableupdate '
                 f'--url https://github.com/jeffbking/{repo} --token "$registration_token" '
                 f'--name {name} --labels {label} --work _work; '
                 'unset registration_token; exec ./run.sh'], check=True, stdout=subprocess.DEVNULL)
 try:
+    pages = json.loads(subprocess.check_output(['gh', 'api', '--paginate', '--slurp',
+                       f'repos/jeffbking/{repo}/actions/runners'], text=True))
+    for page in pages:
+        for old in page['runners']:
+            if old['name'].startswith(label + '-') and old['status'] == 'offline' and not old['busy']:
+                subprocess.run(['gh', 'api', '-X', 'DELETE',
+                                f'repos/jeffbking/{repo}/actions/runners/{old["id"]}'], check=True)
     token = json.loads(subprocess.check_output(['gh', 'api', '-X', 'POST',
                        f'repos/jeffbking/{repo}/actions/runners/registration-token'], text=True))['token']
     result = subprocess.run(['docker', 'start', '-ai', container], input=token+'\n', text=True)
@@ -44,8 +56,9 @@ finally:
     subprocess.run(['docker', 'rm', '-f', container], stdout=subprocess.DEVNULL)
     # Completed ephemeral runners deregister themselves. Remove an abandoned
     # registration only after its container has stopped, using its unique name.
-    runners = json.loads(subprocess.check_output(['gh', 'api',
-                         f'repos/jeffbking/{repo}/actions/runners'], text=True))['runners']
+    runners = json.loads(subprocess.check_output(['gh', 'api', '--paginate', '--slurp',
+                         f'repos/jeffbking/{repo}/actions/runners'], text=True))
+    runners = [runner for page in runners for runner in page['runners']]
     for runner in runners:
         if runner['name'] == name:
             subprocess.run(['gh', 'api', '-X', 'DELETE',
