@@ -3,6 +3,7 @@
 import json
 import pathlib
 import re
+import resource
 import signal
 import subprocess
 import sys
@@ -59,26 +60,34 @@ finally:
         subprocess.run(['docker', 'stop', '--timeout', '30', container], stdout=subprocess.DEVNULL, timeout=40)
     except (OSError, subprocess.SubprocessError) as error:
         print(f'Container cleanup failed: {error}', file=sys.stderr)
+    def limit_archive():
+        resource.setrlimit(resource.RLIMIT_FSIZE, (64 * 1024**2, 64 * 1024**2))
+
     logs = pathlib.Path.home() / 'actions-runners/agy-review/logs' / name
     try:
         logs.mkdir(parents=True, exist_ok=True)
-        subprocess.run(['docker', 'cp', f'{container}:/home/runner/_diag/.', str(logs)],
-                       stdout=subprocess.DEVNULL, check=True, timeout=30)
+        with (logs / 'runner-diag.tar').open('wb') as stream:
+            subprocess.run(['docker', 'cp', f'{container}:/home/runner/_diag/.', '-'],
+                           stdout=stream, check=True, timeout=30, preexec_fn=limit_archive)
     except (OSError, subprocess.SubprocessError) as error:
         print(f'Diagnostic archive failed: {error}', file=sys.stderr)
+    removed = False
     try:
-        subprocess.run(['docker', 'rm', '-f', container], stdout=subprocess.DEVNULL, timeout=40)
+        removed = subprocess.run(['docker', 'rm', '-f', container], stdout=subprocess.DEVNULL, timeout=40).returncode == 0
     except (OSError, subprocess.SubprocessError) as error:
         print(f'Container cleanup failed: {error}', file=sys.stderr)
-    # Completed ephemeral runners deregister themselves. Remove an abandoned
-    # registration only after its container has stopped, using its unique name.
-    try:
-        runners = json.loads(subprocess.check_output(['gh', 'api', '--paginate', '--slurp',
-                             f'repos/jeffbking/{repo}/actions/runners'], text=True, timeout=60))
-        for page in runners:
-            for runner in page['runners']:
-                if runner['name'] == name:
-                    subprocess.run(['gh', 'api', '-X', 'DELETE',
-                                    f'repos/jeffbking/{repo}/actions/runners/{runner["id"]}'], check=True, timeout=60)
-    except (OSError, subprocess.SubprocessError, ValueError) as error:
-        print(f'Registration cleanup failed: {error}', file=sys.stderr)
+    if not removed:
+        print('Container removal unconfirmed; retaining registration for recovery', file=sys.stderr)
+    else:
+        # Completed ephemeral runners deregister themselves. Remove an abandoned
+        # registration only after its container has stopped, using its unique name.
+        try:
+            runners = json.loads(subprocess.check_output(['gh', 'api', '--paginate', '--slurp',
+                                 f'repos/jeffbking/{repo}/actions/runners'], text=True, timeout=60))
+            for page in runners:
+                for runner in page['runners']:
+                    if runner['name'] == name:
+                        subprocess.run(['gh', 'api', '-X', 'DELETE',
+                                        f'repos/jeffbking/{repo}/actions/runners/{runner["id"]}'], check=True, timeout=60)
+        except (OSError, subprocess.SubprocessError, ValueError) as error:
+            print(f'Registration cleanup failed: {error}', file=sys.stderr)
