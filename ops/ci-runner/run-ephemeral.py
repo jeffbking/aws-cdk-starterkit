@@ -29,7 +29,8 @@ subprocess.run(['docker', 'run', '--rm', '--network', 'host', '--cap-drop', 'ALL
                 '--cap-add', 'NET_ADMIN', '--security-opt', 'no-new-privileges',
                 'local/ci-runner-firewall:2026-09-13'], check=True)
 subprocess.run(['docker', 'create', '-i', '--name', container, '--hostname', name,
-                '--network', 'ci-containers', '--init', '--user', '1001:1001', '--cpus', '2', '--memory', '2g' if kind == 'review' else '3g',
+                '--network', 'ci-containers', '--sysctl', 'net.ipv6.conf.all.disable_ipv6=1', '--init', '--user', '1001:1001', '--cpus', '2', '--memory', '2g' if kind == 'review' else '3g',
+                '--memory-swap', '2g' if kind == 'review' else '3g',
                 '--pids-limit', '256' if kind == 'review' else '512', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
                 image, 'bash', '-ec',
                 'IFS= read -r registration_token; ./config.sh --unattended --ephemeral --disableupdate '
