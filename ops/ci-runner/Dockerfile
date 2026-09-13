@@ -6,4 +6,5 @@ ENV AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache
 ENV RUNNER_TOOL_CACHE=/opt/hostedtoolcache
 USER runner
 WORKDIR /home/runner
-CMD ["bash", "-c", "while [ ! -f .runner-ready ]; do sleep 2; done; exec ./run.sh"]
+ENTRYPOINT []
+CMD ["./run.sh"]
