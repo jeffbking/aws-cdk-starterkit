@@ -1,0 +1,14 @@
+services:
+  runner:
+    build: .
+    image: local/light-ci-runner:2026-09-13
+    container_name: 5900xt-aws-cdk-starterkit-ci
+    hostname: 5900xt-aws-cdk-starterkit-ci
+    user: "1001:1001"
+    init: true
+    restart: unless-stopped
+    cpus: 2
+    mem_limit: 3g
+    pids_limit: 512
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
